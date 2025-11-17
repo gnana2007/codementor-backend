@@ -16,33 +16,30 @@ const allowedOrigins = [
   'http://localhost:5173',
   'http://127.0.0.1:3000',
   'http://127.0.0.1:5173',
-  // Add your production frontend URL here, or via env:
   process.env.FRONTEND_URL, // e.g. https://your-frontend.onrender.com
-].filter(Boolean); // remove undefined values
+].filter(Boolean); // remove undefined/null
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, Postman, or curl requests)
+    // Allow requests with no origin (like Postman, curl, mobile apps)
     if (!origin) {
       return callback(null, true);
     }
 
-    // Check if origin is in allowed list
+    // If in allowed list -> allow
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
 
-    // In development, be more permissive
+    // In development, be permissive
     if (process.env.NODE_ENV === 'development') {
       console.log('✅ CORS: Allowing origin in development:', origin);
       return callback(null, true);
     }
 
-    // In production, log but still allow for now (you can make this stricter)
-    // TODO: In production, uncomment the next line to block unknown origins
-    // return callback(new Error('Not allowed by CORS'));
-    console.warn('⚠️ CORS: Origin not in allowed list:', origin);
-    return callback(null, true);
+    // In production, block unknown origins
+    console.warn('🚫 CORS: Origin not allowed:', origin);
+    return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
@@ -54,23 +51,29 @@ const corsOptions = {
 // Apply CORS to all routes
 app.use(cors(corsOptions));
 
-// Explicitly handle preflight (OPTIONS) requests for all routes
-app.options('*', cors(corsOptions));
-
 // Log CORS configuration on startup
-console.log('🌐 CORS enabled with allowed origins:', allowedOrigins.length > 0 ? allowedOrigins : 'All (development mode)');
+console.log(
+  '🌐 CORS enabled with allowed origins:',
+  allowedOrigins.length > 0 ? allowedOrigins : 'All (development mode)'
+);
 // ---------- END CORS CONFIG ----------
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
-// NOTE: Full endpoints will look like:
-//   POST /api/code/analyze
-//   POST /api/chat/...
-app.use('/api/code', require('./routes/codeRoutes'));
-app.use('/api/chat', require('./routes/chatRoutes'));
+const codeRoutes = require('./routes/codeRoutes'); // << important: matches file name
+const chatRoutes = require('./routes/chatRoutes'); // make sure this file exists
 
+// Final endpoints:
+//
+//   POST /api/code/analyze
+//   GET  /api/code/history
+//   GET  /api/code/:id
+//   ... /api/chat/...
+//
+app.use('/api/code', codeRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
